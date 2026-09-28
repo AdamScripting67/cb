@@ -690,7 +690,7 @@ function Library:Window(title, size)
 
         function Tab:Configs(side)
             local ConfigSection = Tab:Section("Configuration", side or "Left")
-            local ConfigPath  = "celestite/"
+            local ConfigPath   = "celestite/"
             local AutoloadPath = ConfigPath .. ".autoload.txt"
 
             if not isfolder(ConfigPath) then makefolder(ConfigPath) end
@@ -819,27 +819,31 @@ function Library:Window(title, size)
                 Refresh()
             end })
 
-            local autoloadToggle
-            autoloadToggle = ConfigSection:Toggle({
-                Name = "Autoload Config",
-                Default = (GetAutoload() ~= nil),
-                Flag = "config_autoload",
-                Callback = function(state)
-                    if state then
-                        local selected = ConfigList:Get()
+            -- 🆕 AUTOLOAD CONFIG BUTTON (replaces toggle)
+            local function AutoloadLabel()
+                local a = GetAutoload()
+                return a and ("Autoload: " .. a) or "Set Autoload to Selected"
+            end
+
+            local autoloadBtn
+            autoloadBtn = ConfigSection:Button({
+                Name = AutoloadLabel(),
+                Callback = function()
+                    local current  = GetAutoload()
+                    local selected = ConfigList:Get()
+
+                    if current and current ~= "" then
+                        SetAutoload(nil)
+                        autoloadBtn.SetText("Set Autoload to Selected")
+                        Library:Notification({ Text = "Autoload disabled", Duration = 3 })
+                    else
                         if not selected or selected == "" then
                             Library:Notification({ Text = "Pick a config first", Duration = 3 })
-                            autoloadToggle.Set(false)
                             return
                         end
                         SetAutoload(selected)
-                        Library:Notification({
-                            Text = "Autoload set: " .. selected,
-                            Duration = 3
-                        })
-                    else
-                        SetAutoload(nil)
-                        Library:Notification({ Text = "Autoload disabled", Duration = 3 })
+                        autoloadBtn.SetText("Autoload: " .. selected)
+                        Library:Notification({ Text = "Autoload set: " .. selected, Duration = 3 })
                     end
                 end,
             })
@@ -862,7 +866,7 @@ function Library:Window(title, size)
                             Duration = 4
                         })
                         SetAutoload(nil)
-                        if autoloadToggle then autoloadToggle.Set(false) end
+                        if autoloadBtn then autoloadBtn.SetText("Set Autoload to Selected") end
                     end
                 end
 
