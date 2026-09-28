@@ -244,7 +244,7 @@ local function AddInlineOutline(inst)
     inner.Position = UDim2.new(0, 1, 0, 1)
     inner.BackgroundTransparency = 1
     inner.BorderSizePixel = 0
-    inner.ZIndex = inst.ZIndex -- Same as parent to stay behind content
+    inner.ZIndex = inst.ZIndex
     inner.Parent = inst
     
     local inl = Instance.new("UIStroke")
@@ -327,15 +327,13 @@ local function Create(class, props, children)
     for k, v in pairs(props or {}) do 
         if k == "FontFace" then inst.FontFace = GetFont()
         elseif k == "TextSize" then inst.TextSize = v
-        elseif k == "Parent" then -- Handled later
+        elseif k == "Parent" then
         else inst[k] = v end
     end
     if props.Parent then inst.Parent = props.Parent end
     for _, c in pairs(children or {}) do c.Parent = inst end
     return inst
 end
-
--- Using optimized Frame-based borders defined at top
 
 function Library:Window(title, size)
     local Window = { Tabs = {} }
@@ -508,7 +506,7 @@ function Library:Window(title, size)
                 local function ToggleState() state = not state; Set(state) end
                 local btn = Create("TextButton", { Size = UDim2.new(1, -70, 1, 0), BackgroundTransparency = 1, Text = "", TextTransparency = 1, ZIndex = 9, Parent = Holder })
                 btn.MouseButton1Click:Connect(ToggleState)
-                local ToggleObj = { GetState = function() return state end, Get = function() return state end, Set = Set }
+                ToggleObj = { GetState = function() return state end, Get = function() return state end, Set = Set }
                 table.insert(Library.Elements.Toggles, { Box = Box, Label = Label, GetState = function() return state end })
                 Library.Flags[opts.Flag or opts.Name] = ToggleObj
                 
@@ -692,74 +690,122 @@ function Library:Window(title, size)
 
         function Tab:Configs(side)
             local ConfigSection = Tab:Section("Configuration", side or "Left")
-            local ConfigPath = "celestite/"
+            local ConfigPath  = "celestite/"
+            local AutoloadPath = ConfigPath .. ".autoload.txt"
+
             if not isfolder(ConfigPath) then makefolder(ConfigPath) end
 
             local ConfigName = ""
-            local NameBox = ConfigSection:TextBox({ Name = "Config Name", Placeholder = "...", Callback = function(v) ConfigName = v end })
+            local NameBox = ConfigSection:TextBox({
+                Name = "Config Name",
+                Placeholder = "...",
+                Callback = function(v) ConfigName = v end
+            })
             local ConfigList = ConfigSection:Dropdown({ Name = "Saved Configs", Options = {} })
-            
-            local function Refresh()
-                local names = {}
+
+            local function GetAutoload()
+                local ok, data = pcall(function()
+                    if isfile(AutoloadPath) then
+                        return readfile(AutoloadPath):gsub("%s+$", "")
+                    end
+                    return ""
+                end)
+                if ok and data ~= "" then return data end
+                return nil
+            end
+
+            local function SetAutoload(name)
                 pcall(function()
-                    local files = listfiles(ConfigPath)
-                    for _, file in pairs(files) do
-                        local name = file:match("([^/\\]+)$") or file
-                        name = name:gsub("%.json$", ""):gsub("%.JSON$", "")
-                        names[#names + 1] = name
+                    if name and name ~= "" then
+                        writefile(AutoloadPath, name)
+                    elseif isfile(AutoloadPath) then
+                        delfile(AutoloadPath)
                     end
                 end)
-                ConfigList:Refresh(names)
-                if #names > 0 then
-                    Library:Notification({ Text = "Found " .. #names .. " configs: " .. table.concat(names, ", "), Duration = 3 })
-                else
-                    Library:Notification({ Text = "No configs found in folder", Duration = 2 })
-                end
             end
-            
-            ConfigList.OnOpen = Refresh
 
-            ConfigSection:Button({ Name = "Save Config", Callback = function()
-                if ConfigName == "" then 
-                    Library:Notification({ Text = "Enter a config name", Duration = 3 })
-                    return 
-                end
-                local data = { Theme = {}, Flags = {} }
-                for k, v in pairs(Library.Theme) do data.Theme[k] = {v.R * 255, v.G * 255, v.B * 255} end
-                for k, v in pairs(Library.Flags) do
-                    local val = (v.Get and v.Get()) or (v.GetState and v.GetState()) or (v.GetText and v.GetText())
-                    if typeof(val) == "Color3" then val = {val.R * 255, val.G * 255, val.B * 255} end
-                    data.Flags[k] = val
-                end
-                local success, err = pcall(function()
-                    writefile(ConfigPath .. ConfigName .. ".json", game:GetService("HttpService"):JSONEncode(data))
-                end)
-                if success then
-                    Refresh()
-                    Library:Notification({ Text = "Saved config: " .. ConfigName, Duration = 3 })
-                else
-                    Library:Notification({ Text = "Error saving config", Duration = 5 })
-                end
-            end })
-            
-            ConfigSection:Button({ Name = "Load Config", Callback = function()
-                local selected = ConfigList:Get()
-                if not selected or selected == "" then return end
-                local path = ConfigPath .. selected .. ".json"
-                local success, err = pcall(function()
+            local function LoadConfigByName(name)
+                if not name or name == "" then return false end
+                local path = ConfigPath .. name .. ".json"
+                if not isfile(path) then return false end
+
+                local success = pcall(function()
                     local data = game:GetService("HttpService"):JSONDecode(readfile(path))
-                    for k, v in pairs(data.Theme or {}) do if Library.Theme[k] then Library.Theme[k] = Color3.fromRGB(v[1], v[2], v[3]) end end
+                    for k, v in pairs(data.Theme or {}) do
+                        if Library.Theme[k] then
+                            Library.Theme[k] = Color3.fromRGB(v[1], v[2], v[3])
+                        end
+                    end
                     Library:UpdateTheme()
                     for k, v in pairs(data.Flags or {}) do
                         if Library.Flags[k] then
                             local val = v
-                            if type(val) == "table" and #val == 3 then val = Color3.fromRGB(val[1], val[2], val[3]) end
+                            if type(val) == "table" and #val == 3 then
+                                val = Color3.fromRGB(val[1], val[2], val[3])
+                            end
                             Library.Flags[k].Set(val)
                         end
                     end
                 end)
-                if success then
-                    Library:Notification({ Text = "Loaded config: " .. selected, Duration = 3 })
+                return success
+            end
+
+            local function Refresh()
+                local names = {}
+                pcall(function()
+                    for _, file in pairs(listfiles(ConfigPath)) do
+                        local name = file:match("([^/\\]+)$") or file
+                        name = name:gsub("%.json$", ""):gsub("%.JSON$", "")
+                        if name ~= ".autoload.txt" and name ~= "" then
+                            names[#names + 1] = name
+                        end
+                    end
+                end)
+                ConfigList:Refresh(names)
+                if #names > 0 then
+                    Library:Notification({
+                        Text = "Found " .. #names .. " config(s): " .. table.concat(names, ", "),
+                        Duration = 3
+                    })
+                else
+                    Library:Notification({ Text = "No configs found", Duration = 2 })
+                end
+            end
+            ConfigList.OnOpen = Refresh
+
+            ConfigSection:Button({ Name = "Save Config", Callback = function()
+                if ConfigName == "" then
+                    Library:Notification({ Text = "Enter a config name", Duration = 3 })
+                    return
+                end
+                local data = { Theme = {}, Flags = {} }
+                for k, v in pairs(Library.Theme) do
+                    data.Theme[k] = { v.R * 255, v.G * 255, v.B * 255 }
+                end
+                for k, v in pairs(Library.Flags) do
+                    local val = (v.Get and v.Get()) or (v.GetState and v.GetState()) or (v.GetText and v.GetText())
+                    if typeof(val) == "Color3" then
+                        val = { val.R * 255, val.G * 255, val.B * 255 }
+                    end
+                    data.Flags[k] = val
+                end
+                local ok = pcall(function()
+                    writefile(ConfigPath .. ConfigName .. ".json",
+                        game:GetService("HttpService"):JSONEncode(data))
+                end)
+                if ok then
+                    Refresh()
+                    Library:Notification({ Text = "Saved: " .. ConfigName, Duration = 3 })
+                else
+                    Library:Notification({ Text = "Error saving config", Duration = 5 })
+                end
+            end })
+
+            ConfigSection:Button({ Name = "Load Config", Callback = function()
+                local selected = ConfigList:Get()
+                if not selected or selected == "" then return end
+                if LoadConfigByName(selected) then
+                    Library:Notification({ Text = "Loaded: " .. selected, Duration = 3 })
                 else
                     Library:Notification({ Text = "Error loading config", Duration = 5 })
                 end
@@ -769,15 +815,60 @@ function Library:Window(title, size)
                 local selected = ConfigList:Get()
                 if not selected or selected == "" then return end
                 pcall(function() delfile(ConfigPath .. selected .. ".json") end)
+                if GetAutoload() == selected then SetAutoload(nil) end
                 Refresh()
             end })
+
+            local autoloadToggle
+            autoloadToggle = ConfigSection:Toggle({
+                Name = "Autoload Config",
+                Default = (GetAutoload() ~= nil),
+                Flag = "config_autoload",
+                Callback = function(state)
+                    if state then
+                        local selected = ConfigList:Get()
+                        if not selected or selected == "" then
+                            Library:Notification({ Text = "Pick a config first", Duration = 3 })
+                            autoloadToggle.Set(false)
+                            return
+                        end
+                        SetAutoload(selected)
+                        Library:Notification({
+                            Text = "Autoload set: " .. selected,
+                            Duration = 3
+                        })
+                    else
+                        SetAutoload(nil)
+                        Library:Notification({ Text = "Autoload disabled", Duration = 3 })
+                    end
+                end,
+            })
 
             task.spawn(function()
                 Refresh()
                 task.wait(0.5)
+
+                local autoName = GetAutoload()
+                if autoName and autoName ~= "" then
+                    if LoadConfigByName(autoName) then
+                        ConfigList:Set(autoName)
+                        Library:Notification({
+                            Text = "Auto-loaded: " .. autoName,
+                            Duration = 4
+                        })
+                    else
+                        Library:Notification({
+                            Text = "Autoload config missing: " .. autoName,
+                            Duration = 4
+                        })
+                        SetAutoload(nil)
+                        if autoloadToggle then autoloadToggle.Set(false) end
+                    end
+                end
+
                 Refresh()
             end)
-            
+
             return ConfigSection
         end
 
