@@ -787,3 +787,5 @@ function Library:Window(title, size)
     task.delay(0.2, function() Library:UpdateTheme() end)
     return Window
 end
+
+return Library
