@@ -1632,13 +1632,13 @@
 					image = "rbxassetid://115194686863276",
 				})
 
-				local watermark = library:watermark({default = os.date('Atlanta |  - %b %d %Y - %H:%M:%S')})  
+				local watermark = library:watermark({default = os.date('novoline.lol - HvH | - %b %d %Y - %H:%M:%S')})  
 
-				task.spawn(function()
-					while task.wait(1) do 
-						watermark.change_text(os.date('Atlanta - Beta - %b %d %Y - %H:%M:%S'))
-					end 
-				end) 
+task.spawn(function()
+    while task.wait(1) do 
+        watermark.change_text(os.date('novoline.lol - HvH - %b %d %Y - %H:%M:%S'))
+    end 
+end) 
 
 				local items = style.items
 
