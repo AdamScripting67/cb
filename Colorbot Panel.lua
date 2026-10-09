@@ -690,7 +690,6 @@ do
 			end
 		end
 
-		pcall(function()
     CustomFont:New("Verdana", 400, "Regular", {
         Id = "Verdana",
         Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/verdana.ttf",
