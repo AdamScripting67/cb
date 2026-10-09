@@ -690,13 +690,23 @@ do
 			end
 		end
 
-		CustomFont:New("Verdana", 400, "Regular", {
-			Id = "Verdana",
-			Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/verdana.ttf",
-		})
+		pcall(function()
+    CustomFont:New("Verdana", 400, "Regular", {
+        Id = "Verdana",
+        Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/verdana.ttf",
+    })
+end)
 
-		Library.Font = CustomFont:Get("Verdana")
-	end
+Library.Font = CustomFont:Get("Verdana")
+
+if not Library.Font then
+    local ok, fallback = pcall(function()
+        return Font.fromEnum(Enum.Font.SourceSans)
+    end)
+    if ok and fallback then
+        Library.Font = fallback
+    end
+end
 
 	Library.Holder = Instances:Create("ScreenGui", {
 		Parent = gethui(),
