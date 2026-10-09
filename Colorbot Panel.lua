@@ -58,11 +58,11 @@ do
 	local InstanceNew = Instance.new
 
 	local CFrameNew = CFrame.new
-    local CFrameAngles = CFrame.Angles
-    local Vector3New = Vector3.new
+	local CFrameAngles = CFrame.Angles
+	local Vector3New = Vector3.new
 	local MathRad = math.rad
-    local MathMax = math.max
-    local MathMin = math.min
+	local MathMax = math.max
+	local MathMin = math.min
 
 	local RectNew = Rect.new
 
@@ -194,23 +194,30 @@ do
 	}
 
 	local Themes = {
-        ["Preset"] = {
-            ["Window Outline"] = FromRGB(0, 34, 37),
-            ["Accent"] = FromRGB(255, 255, 255), -- Changed to White
-            ["Background 1"] = FromRGB(17, 21, 27),
-            ["Text"] = FromRGB(255, 255, 255),
-            ["Inline"] = FromRGB(19, 25, 31),
-            ["Element"] = FromRGB(32, 38, 48),
-            ["Inactive Text"] = FromRGB(185, 185, 185),
-            ["Border"] =  FromRGB(46, 52, 61),
-            ["Background 2"] = FromRGB(24, 28, 36)
-        }
+		["Preset"] = {
+			["Window Outline"] = FromRGB(0, 34, 37),
+			["Accent"] = FromRGB(255, 255, 255), -- Changed to White
+			["Background 1"] = FromRGB(17, 21, 27),
+			["Text"] = FromRGB(255, 255, 255),
+			["Inline"] = FromRGB(19, 25, 31),
+			["Element"] = FromRGB(32, 38, 48),
+			["Inactive Text"] = FromRGB(185, 185, 185),
+			["Border"] = FromRGB(46, 52, 61),
+			["Background 2"] = FromRGB(24, 28, 36)
+		}
 	}
 
 	Library.Theme = TableClone(Themes["Preset"])
 
-	-- Folders
-	for Index, Value in Library.Folders do
+	-- Folders (create parents before children)
+	local FolderList = {}
+	for _, Value in Library.Folders do
+		TableInsert(FolderList, Value)
+	end
+	table.sort(FolderList, function(a, b)
+		return #a < #b
+	end)
+	for _, Value in FolderList do
 		if not isfolder(Value) then
 			makefolder(Value)
 		end
@@ -324,7 +331,7 @@ do
 		Instances.Create = function(self, Class, Properties)
 			local NewItem = {
 				Instance = InstanceNew(Class),
-				Properties = Properties,
+				Properties = Properties or {},
 				Class = Class,
 			}
 
@@ -689,23 +696,25 @@ do
 				return Font.new(getcustomasset(Library.Folders.Assets .. "/" .. Name .. ".json"))
 			end
 		end
+	end
 
-    CustomFont:New("Verdana", 400, "Regular", {
-        Id = "Verdana",
-        Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/verdana.ttf",
-    })
-end)
+	Library.Font = nil
+	pcall(function()
+		CustomFont:New("Verdana", 400, "Regular", {
+			Id = "Verdana",
+			Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/verdana.ttf",
+		})
+		Library.Font = CustomFont:Get("Verdana")
+	end)
 
-Library.Font = CustomFont:Get("Verdana")
-
-if not Library.Font then
-    local ok, fallback = pcall(function()
-        return Font.fromEnum(Enum.Font.SourceSans)
-    end)
-    if ok and fallback then
-        Library.Font = fallback
-    end
-end
+	if not Library.Font then
+		local ok, fallback = pcall(function()
+			return Font.fromEnum(Enum.Font.SourceSans)
+		end)
+		if ok and fallback then
+			Library.Font = fallback
+		end
+	end
 
 	Library.Holder = Instances:Create("ScreenGui", {
 		Parent = gethui(),
@@ -756,11 +765,15 @@ end
 
 	Library.Unload = function(self)
 		for Index, Value in self.Connections do
-			Value.Connection:Disconnect()
+			if Value.Connection then
+				Value.Connection:Disconnect()
+			end
 		end
 
 		for Index, Value in self.Threads do
-			coroutine.close(Value)
+			pcall(function()
+				coroutine.close(Value)
+			end)
 		end
 
 		if self.Holder then
@@ -772,7 +785,7 @@ end
 	end
 
 	Library.GetImage = function(self, Image)
-		local ImageData = self.Images[Image]
+		local ImageData = self.Images and self.Images[Image]
 
 		if not ImageData then
 			return
@@ -831,7 +844,9 @@ end
 	Library.Disconnect = function(self, Name)
 		for _, Connection in self.Connections do
 			if Connection.Name == Name then
-				Connection.Connection:Disconnect()
+				if Connection.Connection then
+					Connection.Connection:Disconnect()
+				end
 				break
 			end
 		end
@@ -991,6 +1006,23 @@ end
 	Library.GetLighterColor = function(self, Color, Increment)
 		local Hue, Saturation, Value = Color:ToHSV()
 		return FromHSV(Hue, Saturation, Value * Increment)
+	end
+
+	-- Internal helper: close all open frames except the given one (safe to mutate)
+	Library.CloseAllOpenFrames = function(self, Except)
+		local ToClose = {}
+		for _, Value in self.OpenFrames do
+			if Value ~= Except then
+				TableInsert(ToClose, Value)
+			end
+		end
+		for _, Value in ToClose do
+			if Value and Value.SetOpen then
+				pcall(function()
+					Value:SetOpen(false)
+				end)
+			end
+		end
 	end
 
 	do
@@ -1433,12 +1465,7 @@ end
 						)
 					end)
 
-					for Index, Value in Library.OpenFrames do
-						if Value ~= Colorpicker then
-							Value:SetOpen(false)
-						end
-					end
-
+					Library:CloseAllOpenFrames(Colorpicker)
 					Library.OpenFrames[Colorpicker] = Colorpicker
 				else
 					if Library.OpenFrames[Colorpicker] then
@@ -1675,8 +1702,8 @@ end
 					SlidingPalette = true
 					Colorpicker:SlidePalette(Input)
 
-					if PaletteChanged then 
-						return 
+					if PaletteChanged then
+						return
 					end
 
 					PaletteChanged = Input.Changed:Connect(function()
@@ -1697,8 +1724,8 @@ end
 					SlidingHue = true
 					Colorpicker:SlideHue(Input)
 
-					if HueChanged then 
-						return 
+					if HueChanged then
+						return
 					end
 
 					HueChanged = Input.Changed:Connect(function()
@@ -1719,7 +1746,7 @@ end
 					SlidingAlpha = true
 					Colorpicker:SlideAlpha(Input)
 
-					if AlphaChanged then 
+					if AlphaChanged then
 						return
 					end
 
@@ -2145,20 +2172,11 @@ end
 						)
 					end)
 
-					if not Debounce then
-						for Index, Value in Library.OpenFrames do
-							if Value ~= Keybind then
-								Value:SetOpen(false)
-							end
-						end
-
-						Library.OpenFrames[Keybind] = Keybind
-					end
+					Library:CloseAllOpenFrames(Keybind)
+					Library.OpenFrames[Keybind] = Keybind
 				else
-					if not Debounce then
-						if Library.OpenFrames[Keybind] then
-							Library.OpenFrames[Keybind] = nil
-						end
+					if Library.OpenFrames[Keybind] then
+						Library.OpenFrames[Keybind] = nil
 					end
 
 					if RenderStepped then
@@ -2723,7 +2741,6 @@ end
 			return KeybindList
 		end
 
-
 		Library.ArmorViewer = function(self)
 			local Viewer = {
 				Items = {},
@@ -2976,6 +2993,7 @@ end
 				}):AddToTheme({ Color = "Border" })
 			end
 
+			task.wait()
 			local Size = Items["Notification"].Instance.AbsoluteSize
 
 			for Index, Value in Items do
@@ -3310,6 +3328,8 @@ end
 				IsOpen = false,
 			}
 
+			local DefaultSize = IsMobile and Vector2New(375, 400) or Vector2New(621, 542)
+
 			local Items = {}
 			do
 				Items["MainFrame"] = Instances:Create("Frame", {
@@ -3318,7 +3338,7 @@ end
 					AnchorPoint = Vector2New(0.5, 0.5),
 					Position = UDim2New(0.5, 0, 0.5, 0),
 					BorderColor3 = FromRGB(0, 34, 37),
-					Size = not IsMobile and UDim2New(0, 621, 0, 542) or UDim2New(0, 375, 0, 400),
+					Size = UDim2FromOffset(DefaultSize.X, DefaultSize.Y),
 					BorderSizePixel = 2,
 					BackgroundColor3 = FromRGB(17, 21, 27),
 				})
@@ -3327,7 +3347,7 @@ end
 				Library.MainFrame = Items["MainFrame"].Instance
 
 				Items["MainFrame"]:MakeDraggable()
-				Items["MainFrame"]:MakeResizeable(Vector2New(621, 542), Vector2New(9999, 9999))
+				Items["MainFrame"]:MakeResizeable(DefaultSize, Vector2New(9999, 9999))
 
 				Items["UIStroke"] = Instances:Create("UIStroke", {
 					Parent = Items["MainFrame"].Instance,
@@ -3369,20 +3389,18 @@ end
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				}):AddToTheme({ Color = "Window Outline" })
 
-				-- UPDATED LOGO SECTION
 				Items["Logo"] = Instances:Create("ImageLabel", {
 					Parent = Items["Inline"].Instance,
 					Name = "\0",
-					ImageColor3 = FromRGB(255, 255, 255), -- Keeps original colors
+					ImageColor3 = FromRGB(255, 255, 255),
 					BorderColor3 = FromRGB(0, 0, 0),
-					Image = "rbxassetid://114710889116407", -- Your provided texture ID
+					Image = "rbxassetid://114710889116407",
 					BackgroundTransparency = 1,
 					Position = UDim2New(0, 8, 0, 10),
 					Size = UDim2New(0, 18, 0, 18),
 					BorderSizePixel = 0,
 					BackgroundColor3 = FromRGB(255, 0, 0),
 				})
-				-- END UPDATED LOGO SECTION
 
 				Items["Title"] = Instances:Create("TextLabel", {
 					Parent = Items["Inline"].Instance,
@@ -3481,9 +3499,7 @@ end
 			end
 
 			function Window:SetOpen(Bool)
-				for Index, Value in Library.OpenFrames do
-					Value:SetOpen(false)
-				end
+				Library:CloseAllOpenFrames(nil)
 
 				if Debounce then
 					return
@@ -4038,7 +4054,6 @@ end
 				})
 
 				Items["Toggle"]:OnHover(function()
-					-- if Toggle.Value then return end
 					Items["IndicatorOutline"]:Tween(
 						nil,
 						{ BackgroundColor3 = Library:GetLighterColor(Library.Theme.Element, 1.35) }
@@ -4046,7 +4061,6 @@ end
 				end)
 
 				Items["Toggle"]:OnHoverLeave(function()
-					-- if Toggle.Value then return end
 					Items["IndicatorOutline"]:Tween(nil, { BackgroundColor3 = Library.Theme.Element })
 				end)
 			end
@@ -4233,7 +4247,7 @@ end
 				Decimals = Data.Decimals or Data.decimals or 1,
 				Suffix = Data.Suffix or Data.suffix or "",
 				Max = Data.Max or Data.max or 100,
-				Default = Data.Default or Data.Default or 0,
+				Default = Data.Default or Data.default or 0,
 				Callback = Data.Callback or Data.callback or function() end,
 
 				Value = 0,
@@ -4378,10 +4392,10 @@ end
 
 					Slider:Set(Value)
 
-					if InputChanged then return end 
+					if InputChanged then return end
 
 					InputChanged = Input.Changed:Connect(function()
-						if Input.UserInputState == Enum.UserInputState.End then 
+						if Input.UserInputState == Enum.UserInputState.End then
 							Slider.Sliding = false
 
 							if InputChanged then
@@ -4708,12 +4722,7 @@ end
 							UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, Dropdown.MaxSize)
 					end)
 
-					for Index, Value in Library.OpenFrames do
-						if Value ~= Dropdown then
-							Value:SetOpen(false)
-						end
-					end
-
+					Library:CloseAllOpenFrames(Dropdown)
 					Library.OpenFrames[Dropdown] = Dropdown
 				else
 					if RenderStepped then
