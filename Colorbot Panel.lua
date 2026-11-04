@@ -3394,7 +3394,7 @@ do
 					Name = "\0",
 					ImageColor3 = FromRGB(255, 255, 255),
 					BorderColor3 = FromRGB(0, 0, 0),
-					Image = "rbxassetid://132871468938099",
+					Image = "rbxthumb://type=Asset&id=115346837845005&w=150&h=150",
 					BackgroundTransparency = 1,
 					Position = UDim2New(0, 8, 0, 10),
 					Size = UDim2New(0, 18, 0, 18),
