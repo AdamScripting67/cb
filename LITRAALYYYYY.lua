@@ -3316,7 +3316,7 @@ do
 			return TargetHud
 		end
 
-		Library.Window = function(self, Data)
+					Library.Window = function(self, Data)
 			Data = Data or {}
 
 			local Window = {
@@ -3389,18 +3389,36 @@ do
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				}):AddToTheme({ Color = "Window Outline" })
 
+				-- // LOGO MODIFICATION START // --
+				local ImgBBLogoUrl = "https://ibb.co/v4f8Z8SP" -- REPLACE THIS URL
+				local LogoPath = Library.Folders.Assets .. "/CustomLogo.png"
+				
+				if not isfile(LogoPath) then
+					pcall(function()
+						writefile(LogoPath, game:HttpGet(ImgBBLogoUrl))
+					end)
+				end
+
+				local LogoAsset = "rbxassetid://114710889116407"
+				if isfile(LogoPath) then
+					pcall(function()
+						LogoAsset = getcustomasset(LogoPath)
+					end)
+				end
+
 				Items["Logo"] = Instances:Create("ImageLabel", {
 					Parent = Items["Inline"].Instance,
 					Name = "\0",
 					ImageColor3 = FromRGB(255, 255, 255),
 					BorderColor3 = FromRGB(0, 0, 0),
-					Image = "rbxassetid://114710889116407",
+					Image = LogoAsset,
 					BackgroundTransparency = 1,
 					Position = UDim2New(0, 8, 0, 10),
 					Size = UDim2New(0, 18, 0, 18),
 					BorderSizePixel = 0,
 					BackgroundColor3 = FromRGB(255, 0, 0),
 				})
+				-- // LOGO MODIFICATION END // --
 
 				Items["Title"] = Instances:Create("TextLabel", {
 					Parent = Items["Inline"].Instance,
