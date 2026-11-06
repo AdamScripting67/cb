@@ -502,6 +502,12 @@ do
 			return Dragging
 		end
 
+		-- ============================================================
+		-- IMPROVED MakeResizeable
+		--   * EdgeThickness = 8px hit area (was 2px) → much easier to grab
+		--   * Visual accent line stays thin (2px) and appears on hover
+		--   * Active edge stays fully opaque while dragging
+		-- ============================================================
 		Instances.MakeResizeable = function(self, Minimum, Maximum)
 			if not self.Instance then
 				return
@@ -516,13 +522,16 @@ do
 			local StartPosition = nil
 			local StartSize = nil
 
-			local EdgeThickness = 2
+			local EdgeThickness = 8 -- Hit-zone thickness (px)
+			local VisualThickness = 2 -- How thick the accent line looks
 
-			local MakeEdge = function(Name, Position, Size)
+			-- Creates one edge: a fat transparent TextButton (hit area) with a
+			-- thin child Frame (visual) that shows on hover / during drag.
+			local MakeEdge = function(Name, HitPos, HitSize, VisPos, VisSize)
 				local Button = Instances:Create("TextButton", {
 					Name = "\0",
-					Size = Size,
-					Position = Position,
+					Size = HitSize,
+					Position = HitPos,
 					BackgroundColor3 = FromRGB(166, 147, 243),
 					BackgroundTransparency = 1,
 					Text = "",
@@ -531,31 +540,51 @@ do
 					Parent = Gui,
 					ZIndex = 99999,
 				})
-				Button:AddToTheme({ BackgroundColor3 = "Accent" })
 
-				return Button
+				local Visual = Instances:Create("Frame", {
+					Name = "\0",
+					Size = VisSize,
+					Position = VisPos,
+					BackgroundColor3 = FromRGB(166, 147, 243),
+					BackgroundTransparency = 1,
+					BorderSizePixel = 0,
+					Parent = Button.Instance,
+					ZIndex = 99999,
+				})
+				Visual:AddToTheme({ BackgroundColor3 = "Accent" })
+
+				return { Button = Button, Visual = Visual, Side = Name }
 			end
 
 			local Edges = {
-				{
-					Button = MakeEdge("Left", UDim2New(0, 0, 0, 0), UDim2New(0, EdgeThickness, 1, 0)),
-					Side = "L",
-				},
-
-				{
-					Button = MakeEdge("Right", UDim2New(1, -EdgeThickness, 0, 0), UDim2New(0, EdgeThickness, 1, 0)),
-					Side = "R",
-				},
-
-				{
-					Button = MakeEdge("Top", UDim2New(0, 0, 0, 0), UDim2New(1, 0, 0, EdgeThickness)),
-					Side = "T",
-				},
-
-				{
-					Button = MakeEdge("Bottom", UDim2New(0, 0, 1, -EdgeThickness), UDim2New(1, 0, 0, EdgeThickness)),
-					Side = "B",
-				},
+				MakeEdge(
+					"L",
+					UDim2New(0, 0, 0, 0),
+					UDim2New(0, EdgeThickness, 1, 0),
+					UDim2New(0, 0, 0, 0),
+					UDim2New(0, VisualThickness, 1, 0)
+				),
+				MakeEdge(
+					"R",
+					UDim2New(1, -EdgeThickness, 0, 0),
+					UDim2New(0, EdgeThickness, 1, 0),
+					UDim2New(1, -VisualThickness, 0, 0),
+					UDim2New(0, VisualThickness, 1, 0)
+				),
+				MakeEdge(
+					"T",
+					UDim2New(0, 0, 0, 0),
+					UDim2New(1, 0, 0, EdgeThickness),
+					UDim2New(0, 0, 0, 0),
+					UDim2New(1, 0, 0, VisualThickness)
+				),
+				MakeEdge(
+					"B",
+					UDim2New(0, 0, 1, -EdgeThickness),
+					UDim2New(1, 0, 0, EdgeThickness),
+					UDim2New(0, 0, 1, -VisualThickness),
+					UDim2New(1, 0, 0, VisualThickness)
+				),
 			}
 
 			local BeginResizing = function(Side)
@@ -576,8 +605,12 @@ do
 				StartPosition = Vector2New(Gui.Position.X.Offset, Gui.Position.Y.Offset)
 				StartSize = Vector2New(Gui.Size.X.Offset, Gui.Size.Y.Offset)
 
-				for Index, Value in Edges do
-					Value.Button.Instance.BackgroundTransparency = (Value.Side == Side) and 0 or 1
+				for _, Edge in Edges do
+					if Edge.Side == Side then
+						Edge.Visual.Instance.BackgroundTransparency = 0
+					else
+						Edge.Visual.Instance.BackgroundTransparency = 1
+					end
 				end
 			end
 
@@ -585,16 +618,35 @@ do
 				Resizing = false
 				CurrentSide = nil
 
-				for Index, Value in Edges do
-					Value.Button.Instance.BackgroundTransparency = 1
+				for _, Edge in Edges do
+					Edge.Visual.Instance.BackgroundTransparency = 1
 				end
 			end
 
-			for Index, Value in Edges do
-				Value.Button:Connect("InputBegan", function(Input)
-					if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-						BeginResizing(Value.Side)
+			for _, Edge in Edges do
+				Edge.Button:Connect("InputBegan", function(Input)
+					if
+						Input.UserInputType == Enum.UserInputType.MouseButton1
+						or Input.UserInputType == Enum.UserInputType.Touch
+					then
+						BeginResizing(Edge.Side)
 					end
+				end)
+
+				-- Hover feedback: show the accent line so the user can
+				-- see where the resize edge is
+				Edge.Button:OnHover(function()
+					if Resizing then
+						return
+					end
+					Edge.Visual.Instance.BackgroundTransparency = 0.35
+				end)
+
+				Edge.Button:OnHoverLeave(function()
+					if Resizing then
+						return
+					end
+					Edge.Visual.Instance.BackgroundTransparency = 1
 				end)
 			end
 
