@@ -5295,7 +5295,7 @@ do
 				SettingsSection:Toggle({
 					Name = "Watermark",
 					Flag = "Watermark",
-					Default = true,
+					Default = false,
 					Callback = function(Value)
 						Watermark:SetVisibility(Value)
 					end,
@@ -5304,7 +5304,7 @@ do
 				SettingsSection:Toggle({
 					Name = "Keybind List",
 					Flag = "Keybind list",
-					Default = true,
+					Default = false,
 					Callback = function(Value)
 						KeybindList:SetVisibility(Value)
 					end,
