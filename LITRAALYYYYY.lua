@@ -2496,13 +2496,17 @@ do
 
 			local Items = {}
 			do
+				local ViewportX = workspace.CurrentCamera.ViewportSize.X
+				local InitialWidth = 180
+				local InitialX = math.floor((ViewportX - InitialWidth) / 2)
+
 				Items["Watermark"] = Instances:Create("Frame", {
 					Parent = Library.Holder.Instance,
 					Name = "\0",
-					AnchorPoint = Vector2New(0.5, 0),
-					Position = UDim2New(0.5, 0, 0, 25),
+					AnchorPoint = Vector2New(0, 0),
+					Position = UDim2FromOffset(InitialX, 25),
 					BorderColor3 = FromRGB(0, 34, 37),
-					Size = UDim2New(0, 180, 0, 30),
+					Size = UDim2FromOffset(InitialWidth, 30),
 					BorderSizePixel = 2,
 					BackgroundColor3 = FromRGB(17, 21, 27),
 					ZIndex = 5,
@@ -2584,12 +2588,21 @@ do
 				Text = tostring(Text)
 				Items["Text"].Instance.Text = Text
 
-				-- Don't auto-resize if the user has already resized manually
+				-- Stop auto-resizing once the user manually resizes
 				if Items["Watermark"].Instance:GetAttribute("Resized") then
 					return
 				end
 
-				Items["Watermark"]:Tween(nil, { Size = UDim2New(0, Items["Text"].Instance.TextBounds.X + 20, 0, 30) })
+				local OldWidth = Items["Watermark"].Instance.Size.X.Offset
+				local NewWidth = Items["Text"].Instance.TextBounds.X + 20
+				local OldX = Items["Watermark"].Instance.Position.X.Offset
+				local OldY = Items["Watermark"].Instance.Position.Y.Offset
+				local NewX = OldX + (OldWidth - NewWidth) / 2
+
+				Items["Watermark"]:Tween(nil, {
+					Size = UDim2FromOffset(NewWidth, 30),
+					Position = UDim2FromOffset(NewX, OldY),
+				})
 			end
 
 			function Watermark:SetVisibility(Bool)
@@ -2597,17 +2610,6 @@ do
 			end
 
 			Watermark:SetText(Name)
-
-			-- After initial auto-sizing, convert to offset positioning so
-			-- MakeDraggable / MakeResizeable work correctly from the first drag
-			task.defer(function()
-				task.wait(0.35)
-				if Items["Watermark"].Instance and Items["Watermark"].Instance.Parent then
-					local AbsPos = Items["Watermark"].Instance.AbsolutePosition
-					Items["Watermark"].Instance.AnchorPoint = Vector2New(0, 0)
-					Items["Watermark"].Instance.Position = UDim2New(0, AbsPos.X, 0, AbsPos.Y)
-				end
-			end)
 
 			return Watermark
 		end
@@ -2618,19 +2620,24 @@ do
 
 			local Items = {}
 			do
+				local ViewportY = workspace.CurrentCamera.ViewportSize.Y
+				local InitialWidth = 150
+				local InitialHeight = 100
+				local InitialY = math.floor((ViewportY - InitialHeight) / 2)
+
 				Items["KeybindList"] = Instances:Create("Frame", {
 					Parent = Library.Holder.Instance,
 					Name = "\0",
-					AnchorPoint = Vector2New(0, 0.5),
-					Position = UDim2New(0, 20, 0.5, 0),
+					AnchorPoint = Vector2New(0, 0),
+					Position = UDim2FromOffset(20, InitialY),
 					BorderColor3 = FromRGB(0, 0, 0),
 					BorderSizePixel = 0,
-					AutomaticSize = Enum.AutomaticSize.XY,
+					Size = UDim2FromOffset(InitialWidth, InitialHeight),
 					BackgroundColor3 = FromRGB(24, 28, 36),
 				})
 				Items["KeybindList"]:AddToTheme({ BackgroundColor3 = "Background 2" })
 
-				-- Draggable + resizable (AutomaticSize will be disabled on first resize)
+				-- Draggable + resizable (fixed-size so edge buttons work reliably)
 				Items["KeybindList"]:MakeDraggable()
 				Items["KeybindList"]:MakeResizeable(Vector2New(100, 50), Vector2New(9999, 9999))
 
@@ -2768,19 +2775,23 @@ do
 					NewKey.Instance.Visible = Bool
 				end
 
+				-- Auto-grow the frame to fit content (unless user resized manually)
+				task.spawn(function()
+					task.wait(0.05)
+					if not Items["KeybindList"].Instance or not Items["KeybindList"].Instance.Parent then
+						return
+					end
+					if Items["KeybindList"].Instance:GetAttribute("Resized") then
+						return
+					end
+					local content = Items["Content"].Instance
+					local NewWidth = math.max(150, content.AbsoluteSize.X + 18)
+					local NewHeight = content.AbsoluteSize.Y + 46
+					Items["KeybindList"].Instance.Size = UDim2FromOffset(NewWidth, NewHeight)
+				end)
+
 				return NewKey
 			end
-
-			-- After the frame auto-sizes itself, switch to offset positioning so
-			-- MakeDraggable / MakeResizeable behave correctly while preserving the look
-			task.defer(function()
-				task.wait(0.1)
-				if Items["KeybindList"].Instance and Items["KeybindList"].Instance.Parent then
-					local AbsPos = Items["KeybindList"].Instance.AbsolutePosition
-					Items["KeybindList"].Instance.AnchorPoint = Vector2New(0, 0)
-					Items["KeybindList"].Instance.Position = UDim2New(0, AbsPos.X, 0, AbsPos.Y)
-				end
-			end)
 
 			return KeybindList
 		end
