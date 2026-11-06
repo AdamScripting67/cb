@@ -562,6 +562,14 @@ do
 				Resizing = true
 				CurrentSide = Side
 
+				-- Lock in current size if AutomaticSize is on, and mark as user-resized
+				if Gui.AutomaticSize ~= Enum.AutomaticSize.None then
+					local AbsSize = Gui.AbsoluteSize
+					Gui.AutomaticSize = Enum.AutomaticSize.None
+					Gui.Size = UDim2FromOffset(AbsSize.X, AbsSize.Y)
+				end
+				Gui:SetAttribute("Resized", true)
+
 				StartMouse = UserInputService:GetMouseLocation()
 
 				-- store offsets, not absolute screen pos
@@ -2501,6 +2509,10 @@ do
 				})
 				Items["Watermark"]:AddToTheme({ BackgroundColor3 = "Background 1" })
 
+				-- Draggable + resizable
+				Items["Watermark"]:MakeDraggable()
+				Items["Watermark"]:MakeResizeable(Vector2New(100, 20), Vector2New(9999, 9999))
+
 				Items["UIStroke"] = Instances:Create("UIStroke", {
 					Parent = Items["Watermark"].Instance,
 					Name = "\0",
@@ -2571,6 +2583,12 @@ do
 			function Watermark:SetText(Text)
 				Text = tostring(Text)
 				Items["Text"].Instance.Text = Text
+
+				-- Don't auto-resize if the user has already resized manually
+				if Items["Watermark"].Instance:GetAttribute("Resized") then
+					return
+				end
+
 				Items["Watermark"]:Tween(nil, { Size = UDim2New(0, Items["Text"].Instance.TextBounds.X + 20, 0, 30) })
 			end
 
@@ -2579,6 +2597,17 @@ do
 			end
 
 			Watermark:SetText(Name)
+
+			-- After initial auto-sizing, convert to offset positioning so
+			-- MakeDraggable / MakeResizeable work correctly from the first drag
+			task.defer(function()
+				task.wait(0.35)
+				if Items["Watermark"].Instance and Items["Watermark"].Instance.Parent then
+					local AbsPos = Items["Watermark"].Instance.AbsolutePosition
+					Items["Watermark"].Instance.AnchorPoint = Vector2New(0, 0)
+					Items["Watermark"].Instance.Position = UDim2New(0, AbsPos.X, 0, AbsPos.Y)
+				end
+			end)
 
 			return Watermark
 		end
@@ -2600,6 +2629,10 @@ do
 					BackgroundColor3 = FromRGB(24, 28, 36),
 				})
 				Items["KeybindList"]:AddToTheme({ BackgroundColor3 = "Background 2" })
+
+				-- Draggable + resizable (AutomaticSize will be disabled on first resize)
+				Items["KeybindList"]:MakeDraggable()
+				Items["KeybindList"]:MakeResizeable(Vector2New(100, 50), Vector2New(9999, 9999))
 
 				Instances:Create("UIPadding", {
 					Parent = Items["KeybindList"].Instance,
@@ -2737,6 +2770,17 @@ do
 
 				return NewKey
 			end
+
+			-- After the frame auto-sizes itself, switch to offset positioning so
+			-- MakeDraggable / MakeResizeable behave correctly while preserving the look
+			task.defer(function()
+				task.wait(0.1)
+				if Items["KeybindList"].Instance and Items["KeybindList"].Instance.Parent then
+					local AbsPos = Items["KeybindList"].Instance.AbsolutePosition
+					Items["KeybindList"].Instance.AnchorPoint = Vector2New(0, 0)
+					Items["KeybindList"].Instance.Position = UDim2New(0, AbsPos.X, 0, AbsPos.Y)
+				end
+			end)
 
 			return KeybindList
 		end
@@ -3389,7 +3433,7 @@ do
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				}):AddToTheme({ Color = "Window Outline" })
 
-								local ImgBBLogoUrl = "https://i.ibb.co/ZzvCWC08/c3693a6a-56a5-435f-8670-8e359e790722.png"
+				local ImgBBLogoUrl = "https://i.ibb.co/ZzvCWC08/c3693a6a-56a5-435f-8670-8e359e790722.png"
 				local LogoPath = Library.Folders.Assets .. "/CustomLogo_imgbb.png"
 
 				if not isfile(LogoPath) then
