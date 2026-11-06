@@ -196,7 +196,7 @@ do
 	local Themes = {
 		["Preset"] = {
 			["Window Outline"] = FromRGB(0, 34, 37),
-			["Accent"] = FromRGB(255, 255, 255), -- Changed to White
+			["Accent"] = FromRGB(122, 92, 255), -- Hex: #7A5CFF
 			["Background 1"] = FromRGB(17, 21, 27),
 			["Text"] = FromRGB(255, 255, 255),
 			["Inline"] = FromRGB(19, 25, 31),
@@ -3316,7 +3316,7 @@ do
 			return TargetHud
 		end
 
-					Library.Window = function(self, Data)
+		Library.Window = function(self, Data)
 			Data = Data or {}
 
 			local Window = {
@@ -3389,17 +3389,16 @@ do
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				}):AddToTheme({ Color = "Window Outline" })
 
-				-- // LOGO MODIFICATION START // --
-				local ImgBBLogoUrl = "https://ibb.co/v4f8Z8SP" -- REPLACE THIS URL
-				local LogoPath = Library.Folders.Assets .. "/CustomLogo.png"
-				
+								local ImgBBLogoUrl = "https://i.ibb.co/ZzvCWC08/c3693a6a-56a5-435f-8670-8e359e790722.png"
+				local LogoPath = Library.Folders.Assets .. "/CustomLogo_imgbb.png"
+
 				if not isfile(LogoPath) then
 					pcall(function()
 						writefile(LogoPath, game:HttpGet(ImgBBLogoUrl))
 					end)
 				end
 
-				local LogoAsset = "rbxassetid://114710889116407"
+				local LogoAsset = "rbxthumb://type=Asset&id=115346837845005&w=150&h=150"
 				if isfile(LogoPath) then
 					pcall(function()
 						LogoAsset = getcustomasset(LogoPath)
@@ -3418,7 +3417,6 @@ do
 					BorderSizePixel = 0,
 					BackgroundColor3 = FromRGB(255, 0, 0),
 				})
-				-- // LOGO MODIFICATION END // --
 
 				Items["Title"] = Instances:Create("TextLabel", {
 					Parent = Items["Inline"].Instance,
@@ -5297,7 +5295,7 @@ do
 				SettingsSection:Toggle({
 					Name = "Watermark",
 					Flag = "Watermark",
-					Default = true,
+					Default = false,
 					Callback = function(Value)
 						Watermark:SetVisibility(Value)
 					end,
@@ -5306,7 +5304,7 @@ do
 				SettingsSection:Toggle({
 					Name = "Keybind List",
 					Flag = "Keybind list",
-					Default = true,
+					Default = false,
 					Callback = function(Value)
 						KeybindList:SetVisibility(Value)
 					end,
